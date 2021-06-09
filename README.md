@@ -12,4 +12,4 @@ It's my first Chrome extension, do not hesitate to report errors and suggestions
 
 ## How to install and use this extension step-by-step :
 
-[https://blog.visum.run/how-to-install-use-the-linkedin-finder-chrome-extension/]https://blog.visum.run/how-to-install-use-the-linkedin-finder-chrome-extension/)
+[https://blog.visum.run/how-to-install-use-the-linkedin-finder-chrome-extension/](https://blog.visum.run/how-to-install-use-the-linkedin-finder-chrome-extension/)
