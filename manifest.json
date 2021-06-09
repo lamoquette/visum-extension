@@ -6,18 +6,10 @@
     "content_scripts": [
         {
             "matches": [
-                "https://outlook.live.com/*"
+                "https://outlook.live.com/people/0/?visum=1"
             ],
             "js": [
-                "content.js"
-            ]
-        },
-        {
-            "matches": [
-                "https://www.linkedin.com/in/*"
-            ],
-            "js": [
-                "content.js"
+                "outlook-token.js"
             ]
         },
         {
@@ -25,7 +17,7 @@
                 "<all_urls>"
             ],
             "js": [
-                "highlight.js"
+                "notifications.js"
             ],
             "run_at": "document_end"
         }
@@ -48,11 +40,9 @@
         "activeTab",
         "storage",
         "tabs",
-        "cookies",
         "contextMenus",
         "notifications",
         "clipboardWrite",
-        "https://outlook.live.com/",
         "<all_urls>"
     ]
 }

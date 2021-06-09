@@ -1,4 +1,5 @@
 var refreshIntervalId = null;
+var linkMap = {};  //outside the listener function
 var LokiAuthToken = null;
 
 function validateEmail(email) {
@@ -48,8 +49,18 @@ async function getLinkedInProfile(mail, token, callback) {
         });
 }
 
-chrome.runtime.onMessage.addListener(
-    async function (request, sender, sendResponse) {
+chrome.notifications.onClicked.addListener(function(notificationId){
+    chrome.notifications.clear(notificationId);
+    window.open(linkMap[notificationId]); //optional
+ })
+
+ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    asyncFunctionWithAwait(request, sender, sendResponse)
+
+    return true
+})
+
+const asyncFunctionWithAwait = async function (request, sender, sendResponse) {
 
         if (request.getToken != undefined && request.getToken == true) {
             getToken();
@@ -91,14 +102,14 @@ chrome.runtime.onMessage.addListener(
                             title: result?.displayName,
                             message: result?.headline,
                         },
-                        (notificationId) => { }
+                        (notificationId) => { linkMap[notificationId] = result.linkedInUrl; }
                     );
 
                     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
                         chrome.tabs.sendMessage(tabs[0].id, {
                             msg: "linkedin_url",
                             linkedInUrl: result.linkedInUrl
-                        }, function (response) { });
+                        });
                     });
                 }
             })
@@ -129,7 +140,7 @@ chrome.runtime.onMessage.addListener(
                             title: result?.displayName,
                             message: result?.headline,
                         },
-                        (notificationId) => { }
+                        (notificationId) => { linkMap[notificationId] = result.linkedInUrl; }
                     );
 
                     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
@@ -143,8 +154,9 @@ chrome.runtime.onMessage.addListener(
         }
 
         if (request.LokiAuthToken != undefined) {
+
             LokiAuthToken = request.LokiAuthToken;
-            // sendResponse({farewell: "goodbye"});
+
             chrome.notifications.create(
                 "demo",
                 {
@@ -158,107 +170,56 @@ chrome.runtime.onMessage.addListener(
                     chrome.browserAction.setIcon({ path: 'icon.png' })
                 }
             );
+
+            chrome.tabs.remove(sender.tab.id, function () { });
+
         }
+
     }
-);
+
+function loading() {
+    chrome.browserAction.setIcon({ path: 'loading.png' })
+
+    var context = document.createElement('canvas').getContext('2d');
+    var start = new Date();
+    var lines = 16,
+        cW = 40,
+        cH = 40;
+
+    refreshIntervalId = setInterval(function () {
+        var rotation = parseInt(((new Date() - start) / 1000) * lines) / lines;
+        context.save();
+        context.clearRect(0, 0, cW, cH);
+        context.translate(cW / 2, cH / 2);
+        context.rotate(Math.PI * 2 * rotation);
+        for (var i = 0; i < lines; i++) {
+            context.beginPath();
+            context.rotate(Math.PI * 2 / lines);
+            context.moveTo(cW / 10, 0);
+            context.lineTo(cW / 4, 0);
+            context.lineWidth = cW / 30;
+            context.strokeStyle = 'rgba(0, 0, 0,' + i / lines + ')';
+            context.stroke();
+        }
+
+        var imageData = context.getImageData(10, 10, 19, 19);
+        chrome.browserAction.setIcon({
+            imageData: imageData
+        });
+
+        context.restore();
+    }, 1000 / 30);
+}
 
 function getToken() {
+    chrome.tabs.create({
+        url: 'https://outlook.live.com/people/?visum=1',
+        active: true
+    }, function (tab) {
 
-    chrome.cookies.getAll({ domain: ".outlook.live.com" }, function (cookies) {
-        if (cookies.length > 0) {
-            console.log('Callback for cookies came in fine.');
-            console.log('cookies.length=' + cookies.length);        
-            for(var i=0; i<cookies.length;i++) {
-                console.log('cookie=' + cookies[i].name);
-            }
-            chrome.tabs.create({
-                url: 'https://outlook.live.com/people/',
-                active: false
-            }, function (tab) {
-                // After the tab has been created, open a window to inject the tab
-                chrome.windows.create({
-                    tabId: tab.id,
-                    type: 'popup',
-                    focused: false
-                    // incognito, top, left, ...
-                });
-                
-                chrome.browserAction.setIcon({ path: 'loading.png' })
-        
-                var context = document.createElement('canvas').getContext('2d');
-                var start = new Date();
-                var lines = 16,
-                    cW = 40,
-                    cH = 40;
-        
-                refreshIntervalId = setInterval(function () {
-                    var rotation = parseInt(((new Date() - start) / 1000) * lines) / lines;
-                    context.save();
-                    context.clearRect(0, 0, cW, cH);
-                    context.translate(cW / 2, cH / 2);
-                    context.rotate(Math.PI * 2 * rotation);
-                    for (var i = 0; i < lines; i++) {
-                        context.beginPath();
-                        context.rotate(Math.PI * 2 / lines);
-                        context.moveTo(cW / 10, 0);
-                        context.lineTo(cW / 4, 0);
-                        context.lineWidth = cW / 30;
-                        context.strokeStyle = 'rgba(0, 0, 0,' + i / lines + ')';
-                        context.stroke();
-                    }
-        
-                    var imageData = context.getImageData(10, 10, 19, 19);
-                    chrome.browserAction.setIcon({
-                        imageData: imageData
-                    });
-        
-                    context.restore();
-                }, 1000 / 30);
-
-                setTimeout(function () {
-                    chrome.tabs.executeScript(tab.id, {
-                        code: 'var LokiAuthToken = sessionStorage.getItem("LokiAuthToken");chrome.runtime.sendMessage({LokiAuthToken: LokiAuthToken}, function(response) {});',
-                    });
-                    chrome.tabs.remove(tab.id, function () { });
-                }, 1000 * 13); 
-    
-            });
-
-               
-            
-        }
-        else {
-            chrome.tabs.create({
-                url: 'https://login.live.com/login.srf?wa=wsignin1.0&rpsnv=13&ct=1617135299&rver=7.0.6737.0&wp=MBI_SSL&wreply=https%3a%2f%2foutlook.live.com%2fowa%2f%3fRpsCsrfState%3dfe833c60-2192-dd73-870d-9000cda91ba4&id=292841&aadredir=1&whr=gmail.com&CBCXT=out&lw=1&fl=dob%2cflname%2cwld&cobrandid=90015',
-                active: true
-            }, function (tab) {
-                // After the tab has been created, open a window to inject the tab
-                chrome.windows.create({
-                    tabId: tab.id,
-                    type: 'popup',
-                    focused: true
-                    // incognito, top, left, ...
-                });
-            });
-        }
+        loading();
     });
-
-    
 }
-/*
-chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
-    // make sure the status is 'complete' and it's the right tab
-    if (tab.url.indexOf('https://outlook.live.com/people/') != -1 && changeInfo.status == 'complete') {
-
-        setTimeout(function () {
-            chrome.tabs.executeScript(tabId, {
-                code: 'var LokiAuthToken = sessionStorage.getItem("LokiAuthToken");chrome.runtime.sendMessage({LokiAuthToken: LokiAuthToken}, function(response) {});',
-            });
-            chrome.tabs.remove(tabId, function () { });
-        }, 1000 * 6);
-
-    }
-});*/
 
 chrome.browserAction.onClicked.addListener(function (activeTab) {
 
@@ -271,7 +232,7 @@ chrome.contextMenus.create({
     'onclick': (e, tab) => {
 
         chrome.tabs.executeScript(tab.id, {
-            code: 'chrome.runtime.sendMessage({textSelected: window.getSelection().toString()}, function(response) {});',
+            code: 'chrome.runtime.sendMessage({textSelected: window.getSelection().toString()});',
         });
     }
 
